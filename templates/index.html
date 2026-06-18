@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CityFlow — Smart Traffic Navigation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Map — left, full height -->
+    <main class="map-panel">
+      <div class="map-panel-header">
+        <div>
+          <div class="map-title-row">
+            <h2 id="cityTitle">Pune City Grid</h2>
+            <div class="map-title-actions">
+              <select id="citySelect" class="city-select"></select>
+              <button type="button" id="themeToggle" class="btn btn-outline btn-sm">Light mode</button>
+            </div>
+          </div>
+          <span id="cityMeta" class="map-sub">OpenStreetMap · 10 junctions</span>
+        </div>
+        <div class="map-panel-tools">
+          <p id="mapHint" class="map-hint">
+            Click map — <strong>source</strong> then <strong>destination</strong>
+          </p>
+          <button type="button" id="autoLayoutBtn" class="btn btn-outline btn-sm">Auto Layout</button>
+        </div>
+      </div>
+      <div class="map-frame">
+        <div id="cityMap" class="city-map"></div>
+        <div class="map-legend">
+          <div class="legend-chip"><span class="chip-dot source"></span> Source</div>
+          <div class="legend-chip"><span class="chip-dot destination"></span> Dest</div>
+          <div class="legend-chip"><span class="chip-dot congested"></span> Jammed</div>
+          <div class="legend-chip"><span class="chip-dot route-fastest"></span> Fastest</div>
+          <div class="legend-chip"><span class="chip-dot route-shortest"></span> Shortest</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right sidebar — all controls & results -->
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="brand">
+          <div class="brand-mark">
+            <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <path d="M6 22 L16 6 L26 22 Z" stroke="currentColor" stroke-width="2.2" fill="none"/>
+              <circle cx="16" cy="20" r="3" fill="currentColor"/>
+            </svg>
+          </div>
+          <div>
+            <h1>CityFlow</h1>
+            <p>Smart Traffic Navigation</p>
+          </div>
+        </div>
+        <div class="live-badge">
+          <span class="pulse"></span>
+          Live Graph
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <section class="panel-block">
+          <div class="block-label">
+            <span class="block-num">01</span>
+            Plan Route
+          </div>
+          <form id="routeForm" class="route-form">
+            <div class="field">
+              <label for="sourceSelect">From</label>
+              <div class="select-wrap">
+                <span class="field-icon from-icon"></span>
+                <select id="sourceSelect" required></select>
+              </div>
+            </div>
+            <div class="route-connector" aria-hidden="true"></div>
+            <div class="field">
+              <label for="targetSelect">To</label>
+              <div class="select-wrap">
+                <span class="field-icon to-icon"></span>
+                <select id="targetSelect" required></select>
+              </div>
+            </div>
+            <div class="field">
+              <label>Strategy</label>
+              <div class="mode-pills" id="modePills">
+                <label class="mode-pill active">
+                  <input type="radio" name="mode" value="time" checked />
+                  <span>Fastest</span>
+                </label>
+                <label class="mode-pill">
+                  <input type="radio" name="mode" value="distance" />
+                  <span>Shortest</span>
+                </label>
+              </div>
+              <select id="modeSelect" class="sr-only" aria-hidden="true" tabindex="-1">
+                <option value="time">Fastest (Traffic-Aware Time)</option>
+                <option value="distance">Shortest (Distance)</option>
+              </select>
+            </div>
+            <div class="btn-stack">
+              <button type="submit" class="btn btn-primary">
+                Navigate
+                <svg viewBox="0 0 20 20" width="15" height="15" fill="none"><path d="M4 10h10M11 6l4 4-4 4" stroke="currentColor" stroke-width="1.8"/></svg>
+              </button>
+              <button type="button" id="compareBtn" class="btn btn-ghost">Compare Routes</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel-block">
+          <div class="block-label">
+            <span class="block-num">02</span>
+            Traffic Control
+          </div>
+          <div class="traffic-actions">
+            <button id="simulateBtn" class="btn btn-coral">Simulate Congestion</button>
+            <button id="resetTrafficBtn" class="btn btn-outline">Clear Traffic</button>
+          </div>
+        </section>
+
+        <div class="sidebar-results" id="infoPanelBody">
+          <p class="info-empty" id="infoEmpty">Results will appear here.</p>
+
+          <section class="panel-block results-block" id="routeResultCard" hidden>
+            <div class="block-label">
+              <span class="block-num">03</span>
+              Route Details
+            </div>
+            <div id="routeSummary" class="summary-grid"></div>
+            <ol id="routeSteps" class="route-steps"></ol>
+          </section>
+
+          <section class="panel-block results-block" id="compareCard" hidden>
+            <div class="block-label">
+              <span class="block-num">04</span>
+              Comparison Report
+            </div>
+            <div id="compareContent"></div>
+          </section>
+        </div>
+      </nav>
+
+      <footer class="sidebar-footer">
+        <span>DSA · Graph + Dijkstra</span>
+        <span class="sep">·</span>
+        <span>Smart Transportation</span>
+      </footer>
+    </aside>
+  </div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="{{ url_for('static', filename='js/auto-layout.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/graph-viz.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

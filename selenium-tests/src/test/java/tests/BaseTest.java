@@ -19,7 +19,7 @@ public class BaseTest {
 
         driver.manage().window().maximize();
 
-        driver.get("http://127.0.0.1:8081");
+        driver.get("http://127.0.0.1:8080");
     }
 
     @AfterMethod
